@@ -48,6 +48,13 @@ async function run() {
         res.send(result);
     })
 
+    // get all the queries
+    app.get('/queries',async(req,res)=>{
+      
+        const result = await queriesCollection.find().sort({ createdAt: -1 }).toArray()
+        res.send(result);
+    })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
