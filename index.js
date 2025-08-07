@@ -1,7 +1,7 @@
 const express = require('express')
 const app = express();
 const cors = require('cors');
-const { MongoClient, ServerApiVersion,ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5012;
 require('dotenv').config();
 
@@ -28,40 +28,77 @@ async function run() {
 
 
         // create collection inDB
-      const queriesCollection = client.db('productRecommendation').collection('queries');
+        const queriesCollection = client.db('productRecommendation').collection('queries');
+        const recommendationCollection = client.db('productRecommendation').collection('recommendation');
+
+        
+        // the recommendation count save in DB is string . so if i change this i need to convert it as number or INT this is have have done here
+        
+        await queriesCollection.updateMany(
+            { recommendationCount: { $type: "string" } },
+            [
+                {
+                    $set: {
+                        recommendationCount: { $toInt: "$recommendationCount" }
+                    }
+                }
+            ]
+        );
+        console.log("✅ Converted string 'recommendationCount' to number if needed.");
+        //   post all queries API
+        app.post('/queries', async (req, res) => {
+            const newQueries = {
+                ...req.body,
+                recommendationCount: 0
+            };
+            const result = await queriesCollection.insertOne(newQueries);
+            res.send(result);
+        })
+
+        // Get all the queries for the specific user
+        app.get('/queries/user/:UserEmail', async (req, res) => {
+            const userEmail = req.params.UserEmail;
+            const query = {
+                UserEmail: userEmail
+            }
+            const result = await queriesCollection.find(query).sort({ createdAt: -1 }).toArray()
+            res.send(result);
+        })
+
+        // get all the queries
+        app.get('/queries', async (req, res) => {
+
+            const result = await queriesCollection.find().sort({ createdAt: -1 }).toArray()
+            res.send(result);
+        })
+
+        //   get the queries based on specific id
+        app.get('/queries/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await queriesCollection.findOne(query);
+            res.send(result)
+        })
 
 
-    //   post all queries API
-    app.post('/queries',async(req,res)=>{
-        const newQueries = req.body;
-        const result= await queriesCollection.insertOne(newQueries);
-        res.send(result);
-    })
 
-    // Get all the queries for the specific user
-    app.get('/queries/user/:UserEmail',async(req,res)=>{
-        const userEmail = req.params.UserEmail;
-        const query={
-            UserEmail:userEmail
-        }
-        const result = await queriesCollection.find(query).sort({ createdAt: -1 }).toArray()
-        res.send(result);
-    })
+        // RecommendationCollection
+        app.post('/recommendation', async (req, res) => {
+            const newRecommendation = req.body;
+            const queryId = newRecommendation.queryId;
+            const result = await recommendationCollection.insertOne(newRecommendation);
 
-    // get all the queries
-    app.get('/queries',async(req,res)=>{
-      
-        const result = await queriesCollection.find().sort({ createdAt: -1 }).toArray()
-        res.send(result);
-    })
+            if (result.insertedId && queryId) {
 
-    //   get the queries based on specific id
-    app.get('/queries/:id',async(req,res)=>{
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const result = await queriesCollection.findOne(query);
-        res.send(result)
-    })
+                // here update field
+                await queriesCollection.updateOne(
+                    { _id: new ObjectId(queryId) },
+                    { $inc: { recommendationCount: 1 } }
+                )
+            }
+
+            res.send(result);
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
@@ -71,7 +108,7 @@ async function run() {
         // await client.close();
     }
 }
- run().catch(console.dir);
+run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
