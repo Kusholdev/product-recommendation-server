@@ -1,7 +1,7 @@
 const express = require('express')
 const app = express();
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion,ObjectId } = require('mongodb');
 const port = process.env.PORT || 5012;
 require('dotenv').config();
 
@@ -39,7 +39,7 @@ async function run() {
     })
 
     // Get all the queries for the specific user
-    app.get('/queries/:UserEmail',async(req,res)=>{
+    app.get('/queries/user/:UserEmail',async(req,res)=>{
         const userEmail = req.params.UserEmail;
         const query={
             UserEmail:userEmail
@@ -53,6 +53,14 @@ async function run() {
       
         const result = await queriesCollection.find().sort({ createdAt: -1 }).toArray()
         res.send(result);
+    })
+
+    //   get the queries based on specific id
+    app.get('/queries/:id',async(req,res)=>{
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await queriesCollection.findOne(query);
+        res.send(result)
     })
 
         // Send a ping to confirm a successful connection
