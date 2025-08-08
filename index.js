@@ -99,6 +99,15 @@ async function run() {
 
             res.send(result);
         })
+        // get recommendation Details
+        app.get('/recommendation/:queryId',async(req,res)=>{
+            const id= req.params.queryId;
+            const query ={
+                queryId:id
+            };
+            const result= await recommendationCollection.find(query).sort({date:-1}).toArray();
+            res.send(result);
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
