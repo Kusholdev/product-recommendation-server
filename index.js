@@ -31,9 +31,9 @@ async function run() {
         const queriesCollection = client.db('productRecommendation').collection('queries');
         const recommendationCollection = client.db('productRecommendation').collection('recommendation');
 
-        
+
         // the recommendation count save in DB is string . so if i change this i need to convert it as number or INT this is have have done here
-        
+
         await queriesCollection.updateMany(
             { recommendationCount: { $type: "string" } },
             [
@@ -80,8 +80,30 @@ async function run() {
             res.send(result)
         })
 
+        app.delete('/queries/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await queriesCollection.deleteOne(query);
+            res.send(result);
+        })
+        app.put('/queries/:id', async (req, res) => {
+            const id = req.params.id;
+            if (!ObjectId.isValid(id)) {
+                return res.status(400).json({ error: "Invalid query id" });
+            }
 
+            const filter = { _id: new ObjectId(id) }
+            const updateData = { ...req.body };
+            // give error .so  Remove _id field if present (i know this gpt)
+            delete updateData._id; 
 
+            
+            const updateInfo = {
+                $set: updateData
+            }
+            const result = await queriesCollection.updateOne(filter, updateInfo);
+            res.send(result);
+        })
         // RecommendationCollection
         app.post('/recommendation', async (req, res) => {
             const newRecommendation = req.body;
@@ -100,14 +122,74 @@ async function run() {
             res.send(result);
         })
         // get recommendation Details
-        app.get('/recommendation/:queryId',async(req,res)=>{
-            const id= req.params.queryId;
-            const query ={
-                queryId:id
+        app.get('/recommendation/:queryId', async (req, res) => {
+            const id = req.params.queryId;
+            const query = {
+                queryId: id
             };
-            const result= await recommendationCollection.find(query).sort({date:-1}).toArray();
+            const result = await recommendationCollection.find(query).sort({ date: -1 }).toArray();
             res.send(result);
         })
+
+        //myRecommendations
+        app.get('/recommendation', async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                return res.status(400).send({ message: "Email is required" });
+            }
+
+            try {
+
+                const query = {
+                    RecommenderEmail: email
+                };
+                const result = await recommendationCollection
+                    .find(query)
+                    .sort({ createdAt: -1 })
+                    .toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send({ message: 'Internal Server Error' });
+            }
+        });
+        app.get('/recommendation', async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                return res.status(400).send({ message: "Email is required" });
+            }
+            console.log("UserEmail:", email)
+            try {
+
+                const query = {
+                    userEmail: email
+                };
+                const result = await recommendationCollection
+                    .find(query)
+                    .sort({ createdAt: -1 })
+                    .toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send({ message: 'Internal Server Error' });
+            }
+        });
+        // Delete a recommendation here
+        app.delete("/recommendation/:id", async (req, res) => {
+            const id = req.params.id;
+            const result = await recommendationCollection.deleteOne({ _id: new ObjectId(id) });
+            res.send(result);
+        });
+
+        // Decrease recommendation count in query
+        app.patch("/query/:id/decrease-recommendation", async (req, res) => {
+            const id = req.params.id;
+            const result = await queriesCollection.updateOne(
+                { _id: new ObjectId(id) },
+                { $inc: { recommendationCount: -1 } }
+            );
+            res.send(result);
+        });
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
