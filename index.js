@@ -133,16 +133,18 @@ async function run() {
 
         //myRecommendations
         app.get('/recommendation', async (req, res) => {
-            const email = req.query.email;
+            const {email,type} = req.query;
             if (!email) {
                 return res.status(400).send({ message: "Email is required" });
             }
 
             try {
 
-                const query = {
-                    RecommenderEmail: email
-                };
+                let query = {};
+                if (type === "given") query = { RecommenderEmail: email };
+                else if (type === "received") query = { userEmail: email };
+                else return res.status(400).send({ message: "Invalid type" });
+        
                 const result = await recommendationCollection
                     .find(query)
                     .sort({ createdAt: -1 })
@@ -153,27 +155,27 @@ async function run() {
                 res.status(500).send({ message: 'Internal Server Error' });
             }
         });
-        app.get('/recommendation', async (req, res) => {
-            const email = req.query.email;
-            if (!email) {
-                return res.status(400).send({ message: "Email is required" });
-            }
-            console.log("UserEmail:", email)
-            try {
+        // app.get('/recommendation', async (req, res) => {
+        //     const email = req.query.email;
+        //     if (!email) {
+        //         return res.status(400).send({ message: "Email is required" });
+        //     }
+        //     console.log("UserEmail:", email)
+        //     try {
 
-                const query = {
-                    userEmail: email
-                };
-                const result = await recommendationCollection
-                    .find(query)
-                    .sort({ createdAt: -1 })
-                    .toArray();
-                res.send(result);
-            } catch (error) {
-                console.error(error);
-                res.status(500).send({ message: 'Internal Server Error' });
-            }
-        });
+        //         const query = {
+        //             userEmail: email
+        //         };
+        //         const result = await recommendationCollection
+        //             .find(query)
+        //             .sort({ createdAt: -1 })
+        //             .toArray();
+        //         res.send(result);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).send({ message: 'Internal Server Error' });
+        //     }
+        // });
         // Delete a recommendation here
         app.delete("/recommendation/:id", async (req, res) => {
             const id = req.params.id;
